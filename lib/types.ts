@@ -23,7 +23,7 @@ type updateDocumentTool = InferUITool<ReturnType<typeof updateDocument>>;
 type requestSuggestionsTool = InferUITool<
   ReturnType<typeof requestSuggestions>
 >;
-type fillPdfFormTool = InferUITool<ReturnType<typeof fillPdfForm>>;
+type fillPdfFormTool = InferUITool<typeof fillPdfForm>;
 
 export type ChatTools = {
   getWeather: weatherTool;
