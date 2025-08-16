@@ -52,12 +52,12 @@ async function preprocessMessage(message: ChatMessage): Promise<ChatMessage> {
     if (part.type === 'file' && part.mediaType === 'application/pdf') {
       try {
         // For PDF files, we'll convert them to text and add context
-        console.log('Processing PDF file:', part.name);
+        console.log('Processing PDF file:', part.filename);
         
         // Add a text part that describes the PDF attachment
         processedParts.push({
           type: 'text' as const,
-          text: `[PDF Document: ${part.name}]\n\nI have uploaded a PDF form titled "${part.name}".\n\nPDF URL for fillPdfForm tool: ${part.url}\n\nPlease help me fill out this form by asking me for the required information, then use the fillPdfForm tool with the PDF URL above to complete it.`,
+          text: `[PDF Document: ${part.filename}]\n\nI have uploaded a PDF form titled "${part.filename}".\n\nPDF URL for fillPdfForm tool: ${part.url}\n\nPlease help me fill out this form by asking me for the required information, then use the fillPdfForm tool with the PDF URL above to complete it.`,
         });
         
         // Note: We're not including the actual PDF file part since the AI model doesn't support it
@@ -67,7 +67,7 @@ async function preprocessMessage(message: ChatMessage): Promise<ChatMessage> {
         // Fallback to a simple text description
         processedParts.push({
           type: 'text' as const,
-          text: `[PDF Document: ${part.name}] - Unable to process PDF content, but I can still help you fill out the form.`,
+          text: `[PDF Document: ${part.filename}] - Unable to process PDF content, but I can still help you fill out the form.`,
         });
       }
     } else {
