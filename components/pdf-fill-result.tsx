@@ -43,7 +43,7 @@ export function PDFFillResult({ result }: PDFFillResultProps) {
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
           {result.success ? (
-            <CheckCircleFillIcon size={24} className="text-green-600" />
+            <CheckCircleFillIcon size={24} />
           ) : (
             <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
               <span className="text-red-600 text-sm font-bold">!</span>
@@ -64,7 +64,7 @@ export function PDFFillResult({ result }: PDFFillResultProps) {
           {result.success && result.filledPdfUrl && (
             <div className="bg-muted rounded-md p-3">
               <div className="flex items-center gap-2 mb-3">
-                <PdfIcon size={20} className="text-red-600" />
+                <PdfIcon size={20} />
                 <span className="font-medium text-sm">Filled PDF Ready</span>
               </div>
               
