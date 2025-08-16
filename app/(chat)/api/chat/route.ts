@@ -23,6 +23,8 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
+import { fillPdfForm } from '@/lib/ai/tools/fill-pdf-form';
+import { downloadPDFFromUrl } from '@/lib/utils/pdf-processor';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -41,6 +43,44 @@ import type { VisibilityType } from '@/components/visibility-selector';
 export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;
+
+// Function to preprocess messages and handle PDF files
+async function preprocessMessage(message: ChatMessage): Promise<ChatMessage> {
+  const processedParts = [];
+  
+  for (const part of message.parts) {
+    if (part.type === 'file' && part.mediaType === 'application/pdf') {
+      try {
+        // For PDF files, we'll convert them to text and add context
+        console.log('Processing PDF file:', part.name);
+        
+        // Add a text part that describes the PDF attachment
+        processedParts.push({
+          type: 'text' as const,
+          text: `[PDF Document: ${part.name}]\n\nI have uploaded a PDF form titled "${part.name}".\n\nPDF URL for fillPdfForm tool: ${part.url}\n\nPlease help me fill out this form by asking me for the required information, then use the fillPdfForm tool with the PDF URL above to complete it.`,
+        });
+        
+        // Note: We're not including the actual PDF file part since the AI model doesn't support it
+        // Instead, we'll pass the PDF URL to the fillPdfForm tool when needed
+      } catch (error) {
+        console.error('Error processing PDF:', error);
+        // Fallback to a simple text description
+        processedParts.push({
+          type: 'text' as const,
+          text: `[PDF Document: ${part.name}] - Unable to process PDF content, but I can still help you fill out the form.`,
+        });
+      }
+    } else {
+      // Keep non-PDF parts as they are
+      processedParts.push(part);
+    }
+  }
+  
+  return {
+    ...message,
+    parts: processedParts,
+  };
+}
 
 export function getStreamContext() {
   if (!globalStreamContext) {
@@ -67,8 +107,13 @@ export async function POST(request: Request) {
 
   try {
     const json = await request.json();
+    console.log('Chat API received request:', JSON.stringify(json, null, 2));
     requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
+  } catch (error) {
+    console.error('Chat API validation error:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+    }
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
@@ -93,10 +138,17 @@ export async function POST(request: Request) {
 
     const userType: UserType = session.user.type;
 
-    const messageCount = await getMessageCountByUserId({
-      id: session.user.id,
-      differenceInHours: 24,
-    });
+    let messageCount = 0;
+    try {
+      messageCount = await getMessageCountByUserId({
+        id: session.user.id,
+        differenceInHours: 24,
+      });
+    } catch (error) {
+      console.error('Error getting message count, proceeding without rate limit check:', error);
+      // Continue without rate limiting if there's a database issue
+      messageCount = 0;
+    }
 
     if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
       return new ChatSDKError('rate_limit:chat').toResponse();
@@ -121,8 +173,27 @@ export async function POST(request: Request) {
       }
     }
 
+    // Preprocess the user message to handle PDFs
+    const processedMessage = await preprocessMessage(message);
+    
+    // Get existing messages from database and preprocess them
     const messagesFromDb = await getMessagesByChatId({ id });
-    const uiMessages = [...convertToUIMessages(messagesFromDb), message];
+    const convertedMessages = convertToUIMessages(messagesFromDb);
+    
+    // Preprocess any existing messages that might contain PDFs
+    const preprocessedExistingMessages = await Promise.all(
+      convertedMessages.map(async (msg) => {
+        if (msg.role === 'user') {
+          return await preprocessMessage(msg as ChatMessage);
+        }
+        return msg;
+      })
+    );
+    
+    const uiMessages = [...preprocessedExistingMessages, processedMessage];
+
+    // Debug: Log the final messages being sent to AI
+    console.log('Final UI messages for AI:', JSON.stringify(uiMessages, null, 2));
 
     const { longitude, latitude, city, country } = geolocation(request);
 
@@ -139,7 +210,7 @@ export async function POST(request: Request) {
           chatId: id,
           id: message.id,
           role: 'user',
-          parts: message.parts,
+          parts: processedMessage.parts, // Save the processed parts instead of original
           attachments: [],
           createdAt: new Date(),
         },
@@ -156,6 +227,8 @@ export async function POST(request: Request) {
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
+          // Remove toolChoice parameter as Sea Lion doesn't support "auto" mode
+          // and we want tools to be available when explicitly needed
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
@@ -164,9 +237,11 @@ export async function POST(request: Request) {
                   'createDocument',
                   'updateDocument',
                   'requestSuggestions',
+                  'fillPdfForm',
                 ],
+          toolChoice: 'auto',
           experimental_transform: smoothStream({ chunking: 'word' }),
-          tools: {
+          tools: selectedChatModel === 'chat-model-reasoning' ? {} : {
             getWeather,
             createDocument: createDocument({ session, dataStream }),
             updateDocument: updateDocument({ session, dataStream }),
@@ -174,6 +249,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            fillPdfForm,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
@@ -219,9 +295,18 @@ export async function POST(request: Request) {
       return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
     }
   } catch (error) {
+    console.error('Error in chat API:', error);
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
+    // Return a generic error response for non-ChatSDKError exceptions
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
