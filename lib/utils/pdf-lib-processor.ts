@@ -106,8 +106,13 @@ export async function fillPDFFieldsWithLib(
     // Flatten the form to prevent further editing (optional)
     // form.flatten();
     
-    const filledPdfBytes = await pdfDoc.save();
-    return filledPdfBytes.buffer;
+    const bytes = await pdfDoc.save(); // Uint8Array
+    // Safely produce a true ArrayBuffer for exactly the bytes of the view
+    const buf = (bytes.buffer as ArrayBuffer).slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength
+    );
+    return buf; // ← ArrayBuffer
   } catch (error) {
     throw new Error(`Failed to fill PDF fields: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
