@@ -28,31 +28,37 @@ export function generateFillFieldsPrompt(
   fields: PDFField[],
   userInfo: string
 ): string {
-  return `You are an automated PDF forms filler.
-Your job is to fill the following form fields using the provided materials.
-Field keys will tell you which values they expect:
+  return `
+You are a PDF form-filling engine. Return ONE JSON OBJECT.
+
+STRICT RULES
+- Output ONLY valid JSON (no prose, no code fences).
+- The top-level must be an OBJECT mapping EXACT field names (keys) -> values.
+- Use the syntax: "fieldName": value  (with a colon). Never output "fieldName", value pairs.
+- Include all fields from the list; use "" if unknown for text.
+- For checkboxes: true/false, not strings.
+- For radio/dropdown: one of the exact options or "" if unknown.
+- Respect maxLength. Do NOT invent keys.
+
+FIELDS:
 ${JSON.stringify(fields, null, 2)}
 
-Materials:
-- Text extracted from the PDF form, delimited by <>:
+PDF TEXT:
 <${pdfText}>
 
-- User information provided, delimited by ##:
+USER INFO:
 #${userInfo}#
 
-Instructions:
-1. Analyze the form fields and the user information
-2. Match the user information to the appropriate form fields
-3. Fill each field with the most appropriate value from the user information
-4. If a field cannot be filled from the available information, leave it empty
-5. Ensure all values fit within the field constraints (max length, type, etc.)
-
-Output a JSON object with key-value pairs where:
-- key is the 'name' of the field
-- value is the field value you assigned to it
-
-Return only valid JSON, no additional text or formatting.`;
+VALID EXAMPLE:
+{
+  "topmostSubform[0].Page1[0].f1_01[0]": "Jack",
+  "topmostSubform[0].Page1[0].f1_02[0]": "bnb",
+  "topmostSubform[0].Page1[0].Boxes3a-b_ReadOrder[0].c1_1[0]": false
 }
+`
+}
+
+
 
 export function cleanAIResponse(responseText: string): string {
   let cleaned = responseText.trim();

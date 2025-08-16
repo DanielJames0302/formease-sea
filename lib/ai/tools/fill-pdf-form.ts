@@ -34,7 +34,7 @@ async function extractPDFFields(pdfBuffer: ArrayBuffer): Promise<PDFField[]> {
     // Use pdf-lib for form field extraction (similar to PyMuPDF's widget approach)
     const { PDFDocument, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } = require('pdf-lib');
     
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
     const form = pdfDoc.getForm();
     const fields: PDFField[] = [];
     
@@ -76,7 +76,7 @@ async function fillPDFFields(pdfBuffer: ArrayBuffer, fieldValues: Record<string,
     // Use pdf-lib for form filling (adapted from PyMuPDF approach)
     const { PDFDocument, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } = require('pdf-lib');
     
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
     const form = pdfDoc.getForm();
     
     console.log('Filling PDF with values:', fieldValues);
@@ -181,6 +181,9 @@ export const fillPdfForm =
         if (!validatePDFFields(pdfFields)) {
           throw new Error('Invalid PDF fields extracted');
         }
+
+        console.log(pdfText)
+        console.log(pdfFields)
 
         // Generate AI prompt for filling fields
         const prompt = generateFillFieldsPrompt(pdfText, pdfFields, userInfo);

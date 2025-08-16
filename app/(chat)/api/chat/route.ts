@@ -39,6 +39,7 @@ import { ChatSDKError } from '@/lib/errors';
 import type { ChatMessage } from '@/lib/types';
 import type { ChatModel } from '@/lib/ai/models';
 import type { VisibilityType } from '@/components/visibility-selector';
+import { extractPdfFormSpec } from '@/lib/ai/tools/extract-pdf-form-spec';
 
 export const maxDuration = 60;
 
@@ -47,40 +48,31 @@ let globalStreamContext: ResumableStreamContext | null = null;
 // Function to preprocess messages and handle PDF files
 async function preprocessMessage(message: ChatMessage): Promise<ChatMessage> {
   const processedParts = [];
-  
+
   for (const part of message.parts) {
     if (part.type === 'file' && part.mediaType === 'application/pdf') {
-      try {
-        // For PDF files, we'll convert them to text and add context
-        console.log('Processing PDF file:', part.filename);
-        
-        // Add a text part that describes the PDF attachment
-        processedParts.push({
-          type: 'text' as const,
-          text: `[PDF Document: ${part.filename}]\n\nI have uploaded a PDF form titled "${part.filename}".\n\nPDF URL for fillPdfForm tool: ${part.url}\n\nPlease help me fill out this form by asking me for the required information, then use the fillPdfForm tool with the PDF URL above to complete it.`,
-        });
-        
-        // Note: We're not including the actual PDF file part since the AI model doesn't support it
-        // Instead, we'll pass the PDF URL to the fillPdfForm tool when needed
-      } catch (error) {
-        console.error('Error processing PDF:', error);
-        // Fallback to a simple text description
-        processedParts.push({
-          type: 'text' as const,
-          text: `[PDF Document: ${part.filename}] - Unable to process PDF content, but I can still help you fill out the form.`,
-        });
-      }
+      // ✅ use part.name (not part.filename)
+      const fileName = (part as any).name ?? (part as any).filename ?? 'document.pdf';
+
+      processedParts.push({
+        type: 'text' as const,
+        // ✅ keep this EXACT (no extra words)
+        text:
+`[PDF Document: ${fileName}]
+PDF URL for fillPdfForm tool: ${part.url}
+
+Please extract required fields using extractPdfFormSpec with the PDF URL above, ask me only for missing required info, then fill via fillPdfForm using the same URL.`,
+      });
+
+      // (You intentionally drop the file part. That's fine.)
     } else {
-      // Keep non-PDF parts as they are
       processedParts.push(part);
     }
   }
-  
-  return {
-    ...message,
-    parts: processedParts,
-  };
+
+  return { ...message, parts: processedParts };
 }
+
 
 export function getStreamContext() {
   if (!globalStreamContext) {
@@ -233,22 +225,24 @@ export async function POST(request: Request) {
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
+                  // 'getWeather',
+                  // 'createDocument',
+                  // 'updateDocument',
                   'requestSuggestions',
+                  'extractPdfFormSpec',
                   'fillPdfForm',
                 ],
           toolChoice: 'auto',
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: selectedChatModel === 'chat-model-reasoning' ? {} : {
-            getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
+            // getWeather,
+            // createDocument: createDocument({ session, dataStream }),
+            // updateDocument: updateDocument({ session, dataStream }),
             requestSuggestions: requestSuggestions({
               session,
               dataStream,
             }),
+            extractPdfFormSpec,
             fillPdfForm,
           },
           experimental_telemetry: {
