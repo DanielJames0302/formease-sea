@@ -29,6 +29,10 @@ import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
 
+type MessagePart =
+  | { type: 'file'; url: string; name: string; mediaType: string }
+  | { type: 'text'; text: string };
+
 function PureMultimodalInput({
   chatId,
   input,
@@ -111,7 +115,7 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
-    const parts = [
+    const parts: MessagePart[] = [
       ...attachments.map((attachment) => ({
         type: 'file' as const,
         url: attachment.url,
