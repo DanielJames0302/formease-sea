@@ -27,17 +27,17 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       <SidebarHeader>
         <SidebarMenu>
           <div className="flex flex-row justify-between items-center">
-            <Link
-              href="/"
-              onClick={() => {
-                setOpenMobile(false);
-              }}
-              className="flex flex-row gap-3 items-center"
-            >
-              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                Chatbot
-              </span>
-            </Link>
+                <Link
+                href="/"
+                onClick={() => {
+                  setOpenMobile(false);
+                }}
+                className="flex flex-row gap-3 items-center"
+              >
+                  <span id='intro-anchor' className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
+                    FormEase-SEA
+                  </span>           
+              </Link>        
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

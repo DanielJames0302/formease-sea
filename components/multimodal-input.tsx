@@ -29,6 +29,10 @@ import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
 
+type MessagePart =
+  | { type: 'file'; url: string; name: string; mediaType: string }
+  | { type: 'text'; text: string };
+
 function PureMultimodalInput({
   chatId,
   input,
@@ -111,20 +115,26 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
+    const parts: MessagePart[] = [
+      ...attachments.map((attachment) => ({
+        type: 'file' as const,
+        url: attachment.url,
+        name: attachment.name,
+        mediaType: attachment.contentType,
+      })),
+    ];
+    
+    // Only add text part if there's actually text content
+    if (input.trim()) {
+      parts.push({
+        type: 'text',
+        text: input.trim(),
+      });
+    }
+    
     sendMessage({
       role: 'user',
-      parts: [
-        ...attachments.map((attachment) => ({
-          type: 'file' as const,
-          url: attachment.url,
-          name: attachment.name,
-          mediaType: attachment.contentType,
-        })),
-        {
-          type: 'text',
-          text: input,
-        },
-      ],
+      parts,
     });
 
     setAttachments([]);
@@ -249,6 +259,7 @@ function PureMultimodalInput({
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
         ref={fileInputRef}
         multiple
+        accept="application/pdf"
         onChange={handleFileChange}
         tabIndex={-1}
       />
@@ -317,6 +328,7 @@ function PureMultimodalInput({
             input={input}
             submitForm={submitForm}
             uploadQueue={uploadQueue}
+            attachments={attachments}
           />
         )}
       </div>
@@ -346,6 +358,7 @@ function PureAttachmentsButton({
 }) {
   return (
     <Button
+      id="upload-form-button"
       data-testid="attachments-button"
       className="rounded-md rounded-bl-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
       onClick={(event) => {
@@ -390,10 +403,12 @@ function PureSendButton({
   submitForm,
   input,
   uploadQueue,
+  attachments,
 }: {
   submitForm: () => void;
   input: string;
   uploadQueue: Array<string>;
+  attachments: Array<Attachment>;
 }) {
   return (
     <Button
@@ -403,7 +418,7 @@ function PureSendButton({
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
+disabled={(input.length === 0 && attachments.length === 0) || uploadQueue.length > 0}
     >
       <ArrowUpIcon size={14} />
     </Button>
@@ -414,5 +429,7 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.uploadQueue.length !== nextProps.uploadQueue.length)
     return false;
   if (prevProps.input !== nextProps.input) return false;
+  if (prevProps.attachments.length !== nextProps.attachments.length)
+    return false;
   return true;
 });

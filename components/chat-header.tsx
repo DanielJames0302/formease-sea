@@ -13,6 +13,8 @@ import { memo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { type VisibilityType, VisibilitySelector } from './visibility-selector';
 import type { Session } from 'next-auth';
+import { HelpTourButton } from './tour-guide-button';
+import { SampleFormDownloadButton } from './sample-form-download-button';
 
 function PureChatHeader({
   chatId,
@@ -35,6 +37,7 @@ function PureChatHeader({
   return (
     <header className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
       <SidebarToggle />
+      <HelpTourButton tour='firsttour' />
 
       {(!open || windowWidth < 768) && (
         <Tooltip>
@@ -70,6 +73,7 @@ function PureChatHeader({
           className="order-1 md:order-3"
         />
       )}
+      <SampleFormDownloadButton className="mt-2 order-1 md:order-4"/>
 
       <Button
         className="bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-50 dark:text-zinc-900 hidden md:flex py-1.5 px-2 h-fit md:h-[34px] order-4 md:ml-auto"

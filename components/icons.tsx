@@ -284,6 +284,35 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => {
   );
 };
 
+export const PdfIcon = ({ size = 16 }: { size?: number }) => {
+  return (
+    <svg
+      height={size}
+      strokeLinejoin="round"
+      viewBox="0 0 16 16"
+      width={size}
+      style={{ color: 'currentcolor' }}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M14.5 13.5V6.5V5.41421C14.5 5.149 14.3946 4.89464 14.2071 4.70711L9.79289 0.292893C9.60536 0.105357 9.351 0 9.08579 0H8H3H1.5V1.5V13.5C1.5 14.8807 2.61929 16 4 16H12C13.3807 16 14.5 14.8807 14.5 13.5ZM13 13.5V6.5H9.5H8V5V1.5H3V13.5C3 14.0523 3.44772 14.5 4 14.5H12C12.5523 14.5 13 14.0523 13 13.5ZM9.5 5V2.12132L12.3787 5H9.5Z"
+        fill="currentColor"
+      />
+      <text
+        x="8"
+        y="11"
+        textAnchor="middle"
+        fontSize="3"
+        fontWeight="bold"
+        fill="currentColor"
+      >
+        PDF
+      </text>
+    </svg>
+  );
+};
+
 export const LoaderIcon = ({ size = 16 }: { size?: number }) => {
   return (
     <svg
